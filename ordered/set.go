@@ -84,6 +84,9 @@ func (s *Set[T]) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	if s.seen == nil {
+		s.seen = make(map[T]struct{}, len(s.keys))
+	}
 	for _, key := range s.keys {
 		s.seen[key] = struct{}{}
 	}
