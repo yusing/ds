@@ -67,6 +67,14 @@ func (s *Set[T]) Clone() *Set[T] {
 	}
 }
 
+func (s *Set[T]) Reverse() {
+	slices.Reverse(s.keys)
+}
+
+func (s *Set[T]) Values() []T {
+	return slices.Clone(s.keys)
+}
+
 func (s *Set[T]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.keys)
 }
