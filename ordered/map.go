@@ -49,6 +49,11 @@ func (o *Map[K, V]) TryGet(key K) (V, bool) {
 	return value, ok
 }
 
+func (o *Map[K, V]) Contains(key K) bool {
+	_, ok := o.m[key]
+	return ok
+}
+
 func (o *Map[K, V]) Del(key K) {
 	oldSize := o.Len()
 	if oldSize == 0 {
@@ -95,6 +100,26 @@ func (o *Map[K, V]) Iter(yield func(key K, value V) bool) {
 			break
 		}
 	}
+}
+
+func (o *Map[K, V]) IterKeys(yield func(key K) bool) {
+	for _, key := range o.keys {
+		if !yield(key) {
+			break
+		}
+	}
+}
+
+func (o *Map[K, V]) IterValues(yield func(value V) bool) {
+	for _, key := range o.keys {
+		if !yield(o.m[key]) {
+			break
+		}
+	}
+}
+
+func (o *Map[K, V]) Reverse() {
+	slices.Reverse(o.keys)
 }
 
 func (o *Map[K, V]) Clear() {
@@ -149,4 +174,45 @@ func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
 	}
 	buf.WriteByte('}')
 	return buf.Bytes(), nil
+}
+
+// OrderedMapMerge merges the given ordered maps into a new ordered map.
+// Similar to array_merge in PHP.
+func MapMerge[K comparable, V any](m ...*Map[K, V]) *Map[K, V] {
+	if len(m) == 0 {
+		return NewMap[K, V]()
+	}
+
+	if len(m) == 1 {
+		return m[0].Clone() // Clone to avoid modifying the original
+	}
+
+	var (
+		keys   []K
+		values map[K]V
+	)
+
+	totalSize := 0
+	for _, om := range m {
+		totalSize += om.Len()
+	}
+
+	seen := make(map[K]bool, totalSize)
+	values = make(map[K]V, totalSize)
+	keys = make([]K, 0, totalSize)
+
+	for _, om := range m {
+		for _, key := range om.keys {
+			if !seen[key] {
+				seen[key] = true
+				keys = append(keys, key)
+				values[key] = om.m[key]
+			}
+		}
+	}
+
+	return &Map[K, V]{
+		m:    values,
+		keys: keys,
+	}
 }
