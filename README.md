@@ -5,5 +5,5 @@ Data structures for Go.
 ## Features
 
 - OrderedMap
-  - Supports json.Marshal and yaml.Marshal
-  - _Support for json.Unmarshal and yaml.Unmarshal is workling in progress_
+  - Supports `json.Marshal`, `json.Unmarshal`, and `yaml.Marshal`
+  - _Support for `yaml.Unmarshal` is workling in progress_

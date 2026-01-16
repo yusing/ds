@@ -589,3 +589,50 @@ func TestOrderedMap_MarshalJSON_ComplexValues(t *testing.T) {
 		require.Equal(t, `{"pointer":"pointer value"}`, string(got))
 	})
 }
+
+func TestOrderedMap_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name   string
+		json   string
+		newMap func() any
+	}{
+		{
+			name: "string keys",
+			newMap: func() any {
+				return NewMap[string, string]()
+			},
+			json: `{"key1":"value1","key2":"value2","key3":"value3","key4":"value4","key5":"value5"}`,
+		},
+		{
+			name: "int keys",
+			newMap: func() any {
+				return NewMap[int, string]()
+			},
+			json: `{"1":"value1","2":"value2","3":"value3","4":"value4","5":"value5"}`,
+		},
+		{
+			name: "uint keys",
+			newMap: func() any {
+				return NewMap[uint, string]()
+			},
+			json: `{"1":"value1","2":"value2","3":"value3","4":"value4","5":"value5"}`,
+		},
+		{
+			name: "float keys",
+			newMap: func() any {
+				return NewMap[float64, string]()
+			},
+			json: `{"1.1":"value1","2.2":"value2","3.3":"value3","4.4":"value4","5.5":"value5"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			om := tt.newMap()
+			err := json.Unmarshal([]byte(tt.json), om)
+			require.NoError(t, err)
+			jsonB, err := json.Marshal(om)
+			require.NoError(t, err)
+			require.Equal(t, tt.json, string(jsonB))
+		})
+	}
+}

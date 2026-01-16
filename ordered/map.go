@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"reflect"
 	"slices"
@@ -36,114 +37,115 @@ func NewMap[K MapKey, V any](opts ...Option) *Map[K, V] {
 	return m
 }
 
-func (o *Map[K, V]) Set(key K, value V) {
-	oldSize := len(o.m)
-	o.m[key] = value
-	if len(o.m) > oldSize { // new key added
-		o.keys = append(o.keys, key)
+func (m *Map[K, V]) Set(key K, value V) {
+	oldSize := len(m.m)
+	m.m[key] = value
+	if len(m.m) > oldSize { // new key added
+		m.keys = append(m.keys, key)
 	}
 }
 
-func (o *Map[K, V]) Get(key K) V {
-	return o.m[key]
+func (m *Map[K, V]) Get(key K) V {
+	return m.m[key]
 }
 
-func (o *Map[K, V]) TryGet(key K) (V, bool) {
-	value, ok := o.m[key]
+func (m *Map[K, V]) TryGet(key K) (V, bool) {
+	value, ok := m.m[key]
 	return value, ok
 }
 
-func (o *Map[K, V]) Contains(key K) bool {
-	_, ok := o.m[key]
+func (m *Map[K, V]) Contains(key K) bool {
+	_, ok := m.m[key]
 	return ok
 }
 
-func (o *Map[K, V]) Del(key K) {
-	oldSize := o.Len()
+func (m *Map[K, V]) Del(key K) {
+	oldSize := m.Len()
 	if oldSize == 0 {
 		return
 	}
 
-	delete(o.m, key)
-	if len(o.m) == oldSize { // key not found
+	delete(m.m, key)
+	if len(m.m) == oldSize { // key not found
 		return
 	}
 
 	if oldSize == 1 {
-		o.keys = o.keys[:0]
+		m.keys = m.keys[:0]
 		return
 	}
 
-	idx := slices.Index(o.keys, key)
+	idx := slices.Index(m.keys, key)
 	if idx == -1 {
 		panic("race condition in OrderedMap.Del")
 	}
 
-	o.keys = slices.Delete(o.keys, idx, idx+1)
+	m.keys = slices.Delete(m.keys, idx, idx+1)
 }
 
-func (o *Map[K, V]) Len() int {
-	return len(o.keys)
+func (m *Map[K, V]) Len() int {
+	return len(m.keys)
 }
 
-func (o *Map[K, V]) Keys() []K {
-	return o.keys
+func (m *Map[K, V]) Keys() []K {
+	return m.keys
 }
 
-func (o *Map[K, V]) Values() []V {
-	values := make([]V, len(o.keys))
-	for i, key := range o.keys {
-		values[i] = o.m[key]
+func (m *Map[K, V]) Values() []V {
+	values := make([]V, len(m.keys))
+	for i, key := range m.keys {
+		values[i] = m.m[key]
 	}
 	return values
 }
 
-func (o *Map[K, V]) Iter(yield func(key K, value V) bool) {
-	for _, key := range o.keys {
-		if !yield(key, o.m[key]) {
+func (m *Map[K, V]) Iter(yield func(key K, value V) bool) {
+	for _, key := range m.keys {
+		if !yield(key, m.m[key]) {
 			break
 		}
 	}
 }
 
-func (o *Map[K, V]) IterKeys(yield func(key K) bool) {
-	for _, key := range o.keys {
+func (m *Map[K, V]) IterKeys(yield func(key K) bool) {
+	for _, key := range m.keys {
 		if !yield(key) {
 			break
 		}
 	}
 }
 
-func (o *Map[K, V]) IterValues(yield func(value V) bool) {
-	for _, key := range o.keys {
-		if !yield(o.m[key]) {
+func (m *Map[K, V]) IterValues(yield func(value V) bool) {
+	for _, key := range m.keys {
+		if !yield(m.m[key]) {
 			break
 		}
 	}
 }
 
-func (o *Map[K, V]) Reverse() {
-	slices.Reverse(o.keys)
+func (m *Map[K, V]) Reverse() {
+	slices.Reverse(m.keys)
 }
 
-func (o *Map[K, V]) Clear() {
-	clear(o.m)
-	o.keys = o.keys[:0]
+func (m *Map[K, V]) Clear() {
+	clear(m.m)
+	m.keys = m.keys[:0]
 }
 
-func (o *Map[K, V]) Clone() *Map[K, V] {
+func (m *Map[K, V]) Clone() *Map[K, V] {
 	return &Map[K, V]{
-		m:    maps.Clone(o.m),
-		keys: slices.Clone(o.keys),
+		m:    maps.Clone(m.m),
+		keys: slices.Clone(m.keys),
 	}
 }
 
-func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
-	if o == nil {
+// MarshalJSON implements the json.Marshaler interface.
+func (m *Map[K, V]) MarshalJSON() ([]byte, error) {
+	if m == nil {
 		return nil, ErrNilOrderedMap
 	}
 
-	if o.Len() == 0 {
+	if m.Len() == 0 {
 		return []byte("{}"), nil
 	}
 
@@ -151,26 +153,26 @@ func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
 	var strKeys []string
 	switch reflect.TypeFor[K]().Kind() {
 	case reflect.String:
-		strKeys = *(*[]string)(unsafe.Pointer(&o.keys))
+		strKeys = *(*[]string)(unsafe.Pointer(&m.keys))
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		strKeys = make([]string, len(o.keys))
-		for i, key := range o.keys {
+		strKeys = make([]string, len(m.keys))
+		for i, key := range m.keys {
 			strKeys[i] = strconv.FormatInt(reflect.ValueOf(key).Int(), 10)
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		strKeys = make([]string, len(o.keys))
-		for i, key := range o.keys {
+		strKeys = make([]string, len(m.keys))
+		for i, key := range m.keys {
 			strKeys[i] = strconv.FormatUint(reflect.ValueOf(key).Uint(), 10)
 		}
 	default: // float32 or float64
-		strKeys = make([]string, len(o.keys))
-		for i, key := range o.keys {
+		strKeys = make([]string, len(m.keys))
+		for i, key := range m.keys {
 			strKeys[i] = strconv.FormatFloat(reflect.ValueOf(key).Float(), 'f', -1, 64)
 		}
 	}
 
 	// handle root keys to preserve the insertion order
-	buf := bytes.NewBuffer(make([]byte, 0, o.Len()*20))
+	buf := bytes.NewBuffer(make([]byte, 0, m.Len()*20))
 	// using json.Encoder instead of json.Marshal
 	// because we don't want to allocate a new byte slice for every key and value
 	je := json.NewEncoder(buf)
@@ -184,7 +186,7 @@ func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
 		writeEscapedString(buf, key)
 		buf.WriteByte(':')
 
-		err := je.Encode(o.m[o.keys[i]])
+		err := je.Encode(m.m[m.keys[i]])
 		if err != nil {
 			return nil, err
 		}
@@ -193,6 +195,93 @@ func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
 	}
 	buf.WriteByte('}')
 	return buf.Bytes(), nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+//
+// The key order follows the json order.
+func (m *Map[K, V]) UnmarshalJSON(data []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+
+	// expect the opening brace '{'
+	t, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	if delim, ok := t.(json.Delim); !ok || delim != '{' {
+		return fmt.Errorf("expected JSON object opening '{', got %v", t)
+	}
+
+	var convertKey func(string) (K, error)
+	switch reflect.TypeFor[K]().Kind() {
+	case reflect.String:
+		convertKey = func(key string) (K, error) {
+			return *(*K)(unsafe.Pointer(&key)), nil
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		convertKey = func(key string) (K, error) {
+			i, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				var zero K
+				return zero, err
+			}
+			return *(*K)(unsafe.Pointer(&i)), nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		convertKey = func(key string) (K, error) {
+			i, err := strconv.ParseUint(key, 10, 64)
+			if err != nil {
+				var zero K
+				return zero, err
+			}
+			return *(*K)(unsafe.Pointer(&i)), nil
+		}
+	default: // float32 or float64
+		convertKey = func(key string) (K, error) {
+			f, err := strconv.ParseFloat(key, 64)
+			if err != nil {
+				var zero K
+				return zero, err
+			}
+			return *(*K)(unsafe.Pointer(&f)), nil
+		}
+	}
+
+	// iterate over the tokens until we hit the closing brace
+	for dec.More() {
+		t, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := t.(string)
+		if !ok {
+			return fmt.Errorf("expected string key, got %T", t)
+		}
+
+		// handle complex nested values (objects, arrays) automatically into type V.
+		var value V
+		if err := dec.Decode(&value); err != nil {
+			return err
+		}
+
+		convertedKey, err := convertKey(key)
+		if err != nil {
+			return fmt.Errorf("unexpected key type: %w", err)
+		}
+
+		m.Set(convertedKey, value)
+	}
+
+	// consume the closing brace '}'
+	t, err = dec.Token()
+	if err != nil {
+		return err
+	}
+	if delim, ok := t.(json.Delim); !ok || delim != '}' {
+		return fmt.Errorf("expected JSON object closing '}', got %v", t)
+	}
+
+	return nil
 }
 
 func MapEquals[K MapKey, V comparable](a, b *Map[K, V]) bool {
