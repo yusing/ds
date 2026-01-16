@@ -7,20 +7,24 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"strconv"
 	"unsafe"
 )
 
-type Map[K comparable, V any] struct {
+type MapKey interface {
+	string | int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64 | float32 | float64
+}
+
+type Map[K MapKey, V any] struct {
 	m    map[K]V
 	keys []K
 }
 
 var (
-	ErrKeyTypeNotString = errors.New("key type must be string")
-	ErrNilOrderedMap    = errors.New("calling MarshalJSON on nil OrderedMap")
+	ErrNilOrderedMap = errors.New("calling MarshalJSON on nil OrderedMap")
 )
 
-func NewMap[K comparable, V any](opts ...Option) *Map[K, V] {
+func NewMap[K MapKey, V any](opts ...Option) *Map[K, V] {
 	var opt option
 	for _, o := range opts {
 		o(&opt)
@@ -135,10 +139,6 @@ func (o *Map[K, V]) Clone() *Map[K, V] {
 }
 
 func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
-	if reflect.TypeFor[K]().Kind() != reflect.String {
-		return nil, ErrKeyTypeNotString
-	}
-
 	if o == nil {
 		return nil, ErrNilOrderedMap
 	}
@@ -148,7 +148,26 @@ func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
 	}
 
 	// can just convert it directly to string slice to avoid unnecessary allocation
-	strKeys := *(*[]string)(unsafe.Pointer(&o.keys))
+	var strKeys []string
+	switch reflect.TypeFor[K]().Kind() {
+	case reflect.String:
+		strKeys = *(*[]string)(unsafe.Pointer(&o.keys))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		strKeys = make([]string, len(o.keys))
+		for i, key := range o.keys {
+			strKeys[i] = strconv.FormatInt(reflect.ValueOf(key).Int(), 10)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		strKeys = make([]string, len(o.keys))
+		for i, key := range o.keys {
+			strKeys[i] = strconv.FormatUint(reflect.ValueOf(key).Uint(), 10)
+		}
+	default: // float32 or float64
+		strKeys = make([]string, len(o.keys))
+		for i, key := range o.keys {
+			strKeys[i] = strconv.FormatFloat(reflect.ValueOf(key).Float(), 'f', -1, 64)
+		}
+	}
 
 	// handle root keys to preserve the insertion order
 	buf := bytes.NewBuffer(make([]byte, 0, o.Len()*20))
@@ -176,13 +195,13 @@ func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func MapEquals[K, V comparable](a, b *Map[K, V]) bool {
+func MapEquals[K MapKey, V comparable](a, b *Map[K, V]) bool {
 	return maps.Equal(a.m, b.m)
 }
 
 // OrderedMapMerge merges the given ordered maps into a new ordered map.
 // Similar to array_merge in PHP.
-func MapMerge[K comparable, V any](m ...*Map[K, V]) *Map[K, V] {
+func MapMerge[K MapKey, V any](m ...*Map[K, V]) *Map[K, V] {
 	if len(m) == 0 {
 		return NewMap[K, V]()
 	}

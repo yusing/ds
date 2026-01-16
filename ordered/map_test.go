@@ -471,47 +471,48 @@ func TestOrderedMap_MarshalJSON(t *testing.T) {
 
 func TestOrderedMap_MarshalJSON_NonStringKeys(t *testing.T) {
 	tests := []struct {
-		name    string
-		setup   func() *Map[any, string]
-		wantErr bool
+		name         string
+		setup        func() json.Marshaler
+		expectedJSON string
 	}{
 		{
 			name: "int keys",
-			setup: func() *Map[any, string] {
-				om := NewMap[any, string]()
+			setup: func() json.Marshaler {
+				om := NewMap[int, string]()
 				om.Set(1, "value1")
 				om.Set(2, "value2")
 				return om
 			},
-			wantErr: true,
+			expectedJSON: `{"1":"value1","2":"value2"}`,
 		},
 		{
-			name: "bool keys",
-			setup: func() *Map[any, string] {
-				om := NewMap[any, string]()
-				om.Set(true, "value1")
-				om.Set(false, "value2")
+			name: "uint keys",
+			setup: func() json.Marshaler {
+				om := NewMap[uint, string]()
+				om.Set(1, "value1")
+				om.Set(2, "value2")
 				return om
 			},
-			wantErr: true,
+			expectedJSON: `{"1":"value1","2":"value2"}`,
 		},
 		{
-			name: "struct keys",
-			setup: func() *Map[any, string] {
-				om := NewMap[any, string]()
-				om.Set(struct{}{}, "value1")
+			name: "float keys",
+			setup: func() json.Marshaler {
+				om := NewMap[float64, string]()
+				om.Set(1.1, "value1")
+				om.Set(2.2, "value2")
 				return om
 			},
-			wantErr: true,
+			expectedJSON: `{"1.1":"value1","2.2":"value2"}`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			om := tt.setup()
-			_, err := om.MarshalJSON()
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "key type must be string")
+			got, err := om.MarshalJSON()
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedJSON, string(got))
 		})
 	}
 }
