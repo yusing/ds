@@ -176,6 +176,10 @@ func (o *Map[K, V]) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func MapEquals[K, V comparable](a, b *Map[K, V]) bool {
+	return maps.Equal(a.m, b.m)
+}
+
 // OrderedMapMerge merges the given ordered maps into a new ordered map.
 // Similar to array_merge in PHP.
 func MapMerge[K comparable, V any](m ...*Map[K, V]) *Map[K, V] {

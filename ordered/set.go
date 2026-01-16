@@ -75,6 +75,10 @@ func (s *Set[T]) Values() []T {
 	return slices.Clone(s.keys)
 }
 
+func (s *Set[T]) Equals(other *Set[T]) bool {
+	return slices.Equal(s.keys, other.keys)
+}
+
 func (s *Set[T]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.keys)
 }
