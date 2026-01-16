@@ -5,7 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	. "github.com/yusing/godoxy/internal/utils/trie"
+	"github.com/yusing/ds/trie"
+	. "github.com/yusing/ds/trie"
 )
 
 // Test data for trie tests
@@ -51,7 +52,7 @@ func keysEqual(m map[string]any, want []string) bool {
 }
 
 func TestWalkAll(t *testing.T) {
-	trie := NewTrie()
+	trie := trie.NewTrie()
 	for key, series := range testData {
 		trie.Store(NewKey(key), series)
 	}
