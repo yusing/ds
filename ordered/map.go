@@ -3,7 +3,6 @@ package ordered
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"reflect"
@@ -20,10 +19,6 @@ type Map[K MapKey, V any] struct {
 	m    map[K]V
 	keys []K
 }
-
-var (
-	ErrNilOrderedMap = errors.New("calling MarshalJSON on nil OrderedMap")
-)
 
 func NewMap[K MapKey, V any](opts ...Option) *Map[K, V] {
 	var opt option
@@ -142,7 +137,7 @@ func (m *Map[K, V]) Clone() *Map[K, V] {
 // MarshalJSON implements the json.Marshaler interface.
 func (m *Map[K, V]) MarshalJSON() ([]byte, error) {
 	if m == nil {
-		return nil, ErrNilOrderedMap
+		return []byte("null"), nil
 	}
 
 	if m.Len() == 0 {
